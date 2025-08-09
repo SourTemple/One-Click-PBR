@@ -1,0 +1,47 @@
+# .githubworkflowsrelease.yml
+name Create Addon Release
+
+on
+  push
+    tags
+      - 'v..' # This workflow only runs when you push a new tag like v8.1.2
+
+jobs
+  build
+    runs-on ubuntu-latest
+    steps
+      - name Checkout code
+        uses actionscheckout@v3
+
+      - name Get Version from Tag
+        id get_version
+        run echo VERSION=${GITHUB_REF#refstags}  $GITHUB_ENV
+
+      - name Update version.txt
+        run echo ${{ env.VERSION }}  sed 'sv'  version.txt
+
+      - name Archive addon files
+        run 
+          cd one_click_pbr
+          zip -r ..one_click_pbr.zip .
+
+      - name Create GitHub Release
+        id create_release
+        uses actionscreate-release@v1
+        env
+          GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
+        with
+          tag_name ${{ github.ref }}
+          release_name Release ${{ github.ref }}
+          draft false
+          prerelease false
+
+      - name Upload Release Asset
+        uses actionsupload-release-asset@v1
+        env
+          GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
+        with
+          upload_url ${{ steps.create_release.outputs.upload_url }}
+          asset_path .one_click_pbr.zip
+          asset_name one_click_pbr.zip
+          asset_content_type applicationzip
